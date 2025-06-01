@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Recipe Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #0e1e3a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 107, 107, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(78, 205, 196, 0.2) 0%, transparent 50%);
+            z-index: -1;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(1deg); }
+            66% { transform: translateY(10px) rotate(-1deg); }
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(20, 20, 30, 0.85);
+            border-radius: 25px;
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, 
+                rgba(255, 107, 107, 0.9) 0%, 
+                rgba(78, 205, 196, 0.9) 50%, 
+                rgba(120, 119, 198, 0.9) 100%);
+            color: white;
+            padding: 35px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .form-section {
+            padding: 40px;
+            background: rgba(25, 25, 35, 0.8);
+            backdrop-filter: blur(15px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #e0e0e0;
+            font-size: 1.1rem;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        select, button {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: rgba(40, 40, 50, 0.7);
+            color: #e0e0e0;
+            backdrop-filter: blur(10px);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: rgba(78, 205, 196, 0.8);
+            box-shadow: 
+                0 0 0 3px rgba(78, 205, 196, 0.2),
+                0 5px 15px rgba(78, 205, 196, 0.3);
+            background: rgba(50, 50, 60, 0.9);
+        }
+
+        select option {
+            background: rgba(30, 30, 40, 0.95);
+            color: #e0e0e0;
+            padding: 10px;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, 
+                rgba(255, 107, 107, 0.9) 0%, 
+                rgba(78, 205, 196, 0.9) 50%, 
+                rgba(120, 119, 198, 0.9) 100%);
+            color: white;
+            border: none;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 8px 25px rgba(255, 107, 107, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .generate-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .generate-btn:hover::before {
+            left: 100%;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 
+                0 15px 35px rgba(255, 107, 107, 0.4),
+                0 5px 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .generate-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #b0b0b0;
+            background: rgba(30, 30, 40, 0.6);
+            border-radius: 15px;
+            margin-top: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .recipe-result {
+            display: none;
+            padding: 35px;
+            background: linear-gradient(135deg, 
+                rgba(240, 147, 251, 0.15) 0%, 
+                rgba(245, 87, 108, 0.15) 50%,
+                rgba(120, 119, 198, 0.15) 100%);
+            color: #e0e0e0;
+            margin-top: 25px;
+            border-radius: 20px;
+            box-shadow: 
+                0 15px 40px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .recipe-result::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                rgba(255, 107, 107, 0.8) 0%, 
+                rgba(78, 205, 196, 0.8) 50%, 
+                rgba(120, 119, 198, 0.8) 100%);
+        }
+
+        .recipe-name {
+            font-size: 2.2rem;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #7877c6);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        .recipe-meta {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .meta-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 20px;
+            border-radius: 25px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .meta-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .ingredients-section, .instructions-section {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .ingredients-section h3, .instructions-section h3 {
+            margin-bottom: 18px;
+            font-size: 1.6rem;
+            color: #f0f0f0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .ingredients-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            list-style: none;
+        }
+
+        .ingredients-list li {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 12px 16px;
+            border-radius: 20px;
+            text-align: center;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .ingredients-list li:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+        }
+
+        .instructions {
+            line-height: 1.9;
+            font-size: 1.1rem;
+            color: #e0e0e0;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+            counter-reset: step-counter;
+        }
+
+        .instructions li {
+            margin-bottom: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid rgba(78, 205, 196, 0.8);
+            position: relative;
+            counter-increment: step-counter;
+            list-style: none;
+            transition: all 0.3s ease;
+        }
+
+        .instructions li:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .instructions li::before {
+            content: "Step " counter(step-counter);
+            position: absolute;
+            left: -4px;
+            top: -8px;
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .mode-section {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }.5);
+        }
+
+        .ai-tip {
+            background: rgba(255, 255, 255, 0.12);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            font-style: italic;
+            margin-top: 25px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            color: #f0f0f0;
+            font-size: 1.05rem;
+        }
+
+        .emoji {
+            font-size: 1.5rem;
+            margin-right: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .form-section {
+                padding: 20px;
+            }
+            
+            .recipe-meta {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Recipe Generator</h1>
+            <p>Discover amazing recipes powered by artificial intelligence</p>
+        </div>
+        
+        <div class="form-section">
+            <!-- Recipe Generation Mode Selector -->
+            <div class="form-group">
+                <label for="mode">🎯 Choose Generation Mode:</label>
+                <select id="mode" name="mode" onchange="toggleModes()" required>
+                    <option value="random">🎲 Random Recipe by Cuisine</option>
+                    <option value="dish">🔍 Search Specific Dish</option>
+                    <option value="ingredients">🥘 Generate from Available Ingredients</option>
+                </select>
+            </div>
+
+            <!-- Random Recipe Mode -->
+            <div id="randomMode" class="mode-section">
+                <div class="form-group">
+                    <label for="cuisine">🍽️ Choose Your Cuisine:</label>
+                    <select id="cuisine" name="cuisine">
+                        <option value="italian">🇮🇹 Italian</option>
+                        <option value="indian">🇮🇳 Indian</option>
+                        <option value="chinese">🇨🇳 Chinese</option>
+                        <option value="mexican">🇲🇽 Mexican</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="dietary">🥗 Dietary Preference:</label>
+                    <select id="dietary" name="dietary">
+                        <option value="any">Any</option>
+                        <option value="vegetarian">Vegetarian</option>
+                        <option value="vegan">Vegan</option>
+                        <option value="gluten-free">Gluten Free</option>
+                    </select>
+                </div>
+                
+                <button type="button" onclick="generateRandomRecipe()" class="generate-btn">
+                    ✨ Generate Random Recipe
+                </button>
+            </div>
+
+            <!-- Dish Search Mode -->
+            <div id="dishMode" class="mode-section" style="display: none;">
+                <div class="form-group">
+                    <label for="dishName">🔍 Enter Dish Name:</label>
+                    <input type="text" id="dishName" name="dishName" placeholder="e.g., Risotto, Pizza, Biryani, Kung Pao" 
+                           style="width: 100%; padding: 15px; border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 12px; font-size: 1rem; background: rgba(40, 40, 50, 0.7); color: #e0e0e0; backdrop-filter: blur(10px);">
+                </div>
+                
+                <button type="button" onclick="searchSpecificDish()" class="generate-btn">
+                    🔍 Search Recipe
+                </button>
+            </div>
+
+            <!-- Ingredients Mode -->
+            <div id="ingredientsMode" class="mode-section" style="display: none;">
+                <div class="form-group">
+                    <label for="availableIngredients">🥘 Available Ingredients (comma-separated):</label>
+                    <textarea id="availableIngredients" name="availableIngredients" rows="3" 
+                              placeholder="e.g., chicken, rice, tomatoes, onions, garlic, cheese"
+                              style="width: 100%; padding: 15px; border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 12px; font-size: 1rem; background: rgba(40, 40, 50, 0.7); color: #e0e0e0; backdrop-filter: blur(10px); resize: vertical; font-family: inherit;"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="ingredientCuisine">🍽️ Preferred Cuisine (Optional):</label>
+                    <select id="ingredientCuisine" name="ingredientCuisine">
+                        <option value="any">Any Cuisine</option>
+                        <option value="italian">🇮🇹 Italian</option>
+                        <option value="indian">🇮🇳 Indian</option>
+                        <option value="chinese">🇨🇳 Chinese</option>
+                        <option value="mexican">🇲🇽 Mexican</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ingredientDietary">🥗 Dietary Preference:</label>
+                    <select id="ingredientDietary" name="ingredientDietary">
+                        <option value="any">Any</option>
+                        <option value="vegetarian">Vegetarian</option>
+                        <option value="vegan">Vegan</option>
+                        <option value="gluten-free">Gluten Free</option>
+                    </select>
+                </div>
+                
+                <button type="button" onclick="generateFromIngredients()" class="generate-btn">
+                    🤖 Generate Recipe from Ingredients
+                </button>
+            </div>
+            
+            <div class="loading" id="loading">
+                <p>🤖 AI is cooking up something special for you...</p>
+            </div>
+        </div>
+        
+        <div class="recipe-result" id="recipeResult">
+            <!-- Recipe will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('recipeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('recipeResult');
+            const formData = new FormData(this);
+            
+            // Show loading
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/generate_recipe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cuisine: formData.get('cuisine'),
+                        dietary_preference: formData.get('dietary')
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayRecipe(data.recipe, data.ai_tip, data.cuisine_type);
+                } else {
+                    alert('Error generating recipe: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+        
+        function displayRecipe(recipe, aiTip, cuisineType) {
+            const result = document.getElementById('recipeResult');
+            
+            const ingredientsList = recipe.ingredients.map(ingredient => 
+                `<li>${ingredient}</li>`
+            ).join('');
+            
+            result.innerHTML = `
+                <div class="recipe-name">${recipe.name}</div>
+                
+                <div class="recipe-meta">
+                    <div class="meta-item">
+                        <div>⏱️ Prep Time</div>
+                        <div>${recipe.prep_time}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div>📈 Difficulty</div>
+                        <div>${recipe.difficulty}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div>🌍 Cuisine</div>
+                        <div>${cuisineType}</div>
+                    </div>
+                </div>
+                
+                <div class="ingredients-section">
+                    <h3>🛒 Ingredients</h3>
+                    <ul class="ingredients-list">
+                        ${ingredientsList}
+                    </ul>
+                </div>
+                
+                <div class="instructions-section">
+                    <h3>👨‍🍳 Instructions</h3>
+                    <div class="instructions">${recipe.instructions}</div>
+                </div>
+                
+                <div class="ai-tip">
+                    <strong>${aiTip}</strong>
+                </div>
+            `;
+            
+            result.style.display = 'block';
+            result.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
