@@ -1,338 +1,324 @@
-import streamlit as st
-import json
-import random
-from datetime import datetime
-import os
-
-# Load environment variables (optional for deployment)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass  # dotenv not available in deployment
-
-# Page configuration
-st.set_page_config(
-    page_title="🍳 AI Recipe Generator",
-    page_icon="🍳",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Custom CSS for attractive UI
-st.markdown("""
-<style>
-    .main-header {
-        background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcf7f);
-        padding: 2rem;
-        border-radius: 15px;
-        text-align: center;
-        color: white;
-        font-size: 2.5rem;
-        font-weight: bold;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
+def get_mock_recipe(cuisine, dietary_pref, ingredients, cooking_time=45, skill_level="Intermediate"):
+    """Enhanced AI recipe generation with user customization"""
     
-    .recipe-card {
-        background: linear-gradient(145deg, #f0f8ff, #e6f3ff);
-        padding: 2rem;
-        border-radius: 15px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        margin: 1rem 0;
-        border-left: 5px solid #4CAF50;
-    }
-    
-    .ingredient-chip {
-        background: linear-gradient(45deg, #ff6b6b, #ffa726);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        margin: 0.2rem;
-        display: inline-block;
-        font-weight: bold;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-    
-    .step-number {
-        background: linear-gradient(45deg, #4CAF50, #45a049);
-        color: white;
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        margin-right: 10px;
-    }
-    
-    .nutrition-badge {
-        background: linear-gradient(45deg, #9c27b0, #e91e63);
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        font-size: 0.9rem;
-        margin: 0.2rem;
-        display: inline-block;
-    }
-    
-    .sidebar-header {
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        text-align: center;
-        margin-bottom: 1rem;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# Mock recipe database (simulating AI responses)
-MOCK_RECIPES = {
-    "italian": [
-        {
-            "name": "Creamy Mushroom Risotto",
-            "description": "A rich and creamy Italian classic with earthy mushrooms",
-            "prep_time": "15 minutes",
-            "cook_time": "25 minutes",
-            "servings": 4,
-            "difficulty": "Medium",
-            "ingredients": [
-                "2 cups Arborio rice", "4 cups vegetable broth", "1 lb mixed mushrooms",
-                "1 onion, diced", "3 cloves garlic", "1/2 cup white wine",
-                "1/2 cup parmesan cheese", "2 tbsp butter", "Fresh thyme"
-            ],
-            "instructions": [
-                "Heat broth in a separate pan and keep warm",
-                "Sauté mushrooms until golden, set aside",
-                "Cook onion and garlic until fragrant",
-                "Add rice and toast for 2 minutes",
-                "Add wine and stir until absorbed",
-                "Add broth one ladle at a time, stirring constantly",
-                "Fold in mushrooms, butter, and parmesan",
-                "Season and serve immediately"
-            ],
-            "nutrition": {"calories": 380, "protein": "12g", "carbs": "58g", "fat": "8g"}
-        }
-    ],
-    "indian": [
-        {
-            "name": "Butter Chicken Curry",
-            "description": "Creamy tomato-based curry with tender chicken pieces",
-            "prep_time": "20 minutes",
-            "cook_time": "30 minutes",
-            "servings": 4,
-            "difficulty": "Medium",
-            "ingredients": [
-                "1 lb chicken breast, cubed", "1 can tomato sauce", "1/2 cup heavy cream",
-                "1 onion, sliced", "3 cloves garlic", "1 inch ginger",
-                "2 tsp garam masala", "1 tsp turmeric", "Salt to taste", "Fresh cilantro"
-            ],
-            "instructions": [
-                "Marinate chicken with yogurt and spices for 15 minutes",
-                "Cook chicken until golden, set aside",
-                "Sauté onions until caramelized",
-                "Add garlic, ginger, and spices",
-                "Add tomato sauce and simmer",
-                "Return chicken to pan",
-                "Stir in cream and simmer until thick",
-                "Garnish with cilantro and serve with rice"
-            ],
-            "nutrition": {"calories": 420, "protein": "28g", "carbs": "12g", "fat": "18g"}
-        }
-    ],
-    "mexican": [
-        {
-            "name": "Spicy Black Bean Tacos",
-            "description": "Flavorful vegetarian tacos with seasoned black beans",
-            "prep_time": "10 minutes",
-            "cook_time": "15 minutes",
-            "servings": 4,
-            "difficulty": "Easy",
-            "ingredients": [
-                "2 cans black beans", "8 corn tortillas", "1 avocado",
-                "1 lime", "1 red onion", "2 tomatoes", "1 jalapeño",
-                "Cumin", "Chili powder", "Fresh cilantro", "Mexican cheese"
-            ],
-            "instructions": [
-                "Drain and rinse black beans",
-                "Heat beans with cumin and chili powder",
-                "Warm tortillas in a dry pan",
-                "Dice tomatoes, onion, and jalapeño",
-                "Mash avocado with lime juice",
-                "Assemble tacos with beans and toppings",
-                "Sprinkle with cheese and cilantro",
-                "Serve with lime wedges"
-            ],
-            "nutrition": {"calories": 320, "protein": "14g", "carbs": "52g", "fat": "8g"}
-        }
-    ]
-}
-
-def get_mock_recipe(cuisine, dietary_pref, ingredients):
-    """Simulate AI recipe generation"""
-    available_recipes = MOCK_RECIPES.get(cuisine.lower(), MOCK_RECIPES["italian"])
-    base_recipe = random.choice(available_recipes)
-    
-    # Modify recipe based on preferences
-    if dietary_pref == "Vegetarian" and "chicken" in base_recipe["name"].lower():
-        base_recipe["name"] = base_recipe["name"].replace("Chicken", "Vegetable")
-        base_recipe["ingredients"] = [ing for ing in base_recipe["ingredients"] if "chicken" not in ing.lower()]
-    
-    return base_recipe
-
-def main():
-    # Header
-    st.markdown('<div class="main-header">🍳 AI Recipe Generator</div>', unsafe_allow_html=True)
-    
-    # Sidebar
-    with st.sidebar:
-        st.markdown('<div class="sidebar-header"><h2>🎯 Recipe Preferences</h2></div>', unsafe_allow_html=True)
-        
-        # User inputs
-        cuisine = st.selectbox(
-            "🌍 Choose Cuisine:",
-            ["Italian", "Indian", "Mexican", "Chinese", "American", "Mediterranean", "Thai", "French"]
-        )
-        
-        dietary_pref = st.selectbox(
-            "🥗 Dietary Preference:",
-            ["No Preference", "Vegetarian", "Vegan", "Gluten-Free", "Keto", "Low-Carb"]
-        )
-        
-        cooking_time = st.slider("⏱️ Max Cooking Time (minutes):", 15, 120, 45)
-        
-        skill_level = st.selectbox(
-            "👨‍🍳 Skill Level:",
-            ["Beginner", "Intermediate", "Advanced"]
-        )
-        
-        ingredients = st.text_area(
-            "🥕 Available Ingredients (optional):",
-            placeholder="tomatoes, onions, garlic, chicken..."
-        )
-        
-        generate_btn = st.button("✨ Generate Recipe", type="primary", use_container_width=True)
-    
-    # Main content area
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        if generate_btn or 'current_recipe' not in st.session_state:
-            with st.spinner("🤖 AI is crafting your perfect recipe..."):
-                # Simulate API call delay
-                import time
-                time.sleep(2)
-                
-                # Generate recipe
-                recipe = get_mock_recipe(cuisine, dietary_pref, ingredients)
-                st.session_state.current_recipe = recipe
-        
-        if 'current_recipe' in st.session_state:
-            recipe = st.session_state.current_recipe
-            
-            # Recipe display
-            st.markdown('<div class="recipe-card">', unsafe_allow_html=True)
-            
-            # Recipe header
-            col_name, col_time = st.columns([3, 1])
-            with col_name:
-                st.markdown(f"## 🍽️ {recipe['name']}")
-                st.markdown(f"*{recipe['description']}*")
-            
-            with col_time:
-                st.metric("⏱️ Total Time", f"{int(recipe['prep_time'].split()[0]) + int(recipe['cook_time'].split()[0])} min")
-                st.metric("👥 Servings", recipe['servings'])
-            
-            # Recipe details
-            detail_col1, detail_col2, detail_col3 = st.columns(3)
-            with detail_col1:
-                st.info(f"📝 **Prep:** {recipe['prep_time']}")
-            with detail_col2:
-                st.info(f"🔥 **Cook:** {recipe['cook_time']}")
-            with detail_col3:
-                st.info(f"📊 **Level:** {recipe['difficulty']}")
-            
-            st.markdown("---")
-            
-            # Ingredients section
-            st.markdown("### 🛒 Ingredients")
-            ingredients_html = ""
-            for ingredient in recipe['ingredients']:
-                ingredients_html += f'<span class="ingredient-chip">{ingredient}</span> '
-            st.markdown(ingredients_html, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            
-            # Instructions section
-            st.markdown("### 👨‍🍳 Instructions")
-            for i, instruction in enumerate(recipe['instructions'], 1):
-                st.markdown(
-                    f'<div style="display: flex; align-items: center; margin: 1rem 0;">'
-                    f'<span class="step-number">{i}</span>'
-                    f'<span style="flex: 1;">{instruction}</span></div>',
-                    unsafe_allow_html=True
-                )
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col2:
-        # Nutrition information
-        if 'current_recipe' in st.session_state:
-            recipe = st.session_state.current_recipe
-            
-            st.markdown("### 📊 Nutrition Facts")
-            nutrition = recipe['nutrition']
-            
-            # Create nutrition badges
-            nutrition_html = f"""
-            <div style="text-align: center;">
-                <span class="nutrition-badge">🔥 {nutrition['calories']} cal</span><br>
-                <span class="nutrition-badge">🥩 {nutrition['protein']}</span><br>
-                <span class="nutrition-badge">🍞 {nutrition['carbs']}</span><br>
-                <span class="nutrition-badge">🥑 {nutrition['fat']}</span>
-            </div>
-            """
-            st.markdown(nutrition_html, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            
-            # Action buttons
-            st.markdown("### 💾 Save & Share")
-            
-            if st.button("❤️ Save to Favorites", use_container_width=True):
-                st.success("Recipe saved to favorites!")
-            
-            if st.button("📱 Share Recipe", use_container_width=True):
-                st.info("Share link copied to clipboard!")
-            
-            if st.button("🛒 Add to Shopping List", use_container_width=True):
-                st.success("Ingredients added to shopping list!")
-        
-        # Tips section
-        st.markdown("---")
-        st.markdown("### 💡 Pro Tips")
-        tips = [
-            "🧂 Always taste and adjust seasoning",
-            "🔥 Preheat your pan before cooking",
-            "🥘 Use fresh herbs when possible",
-            "⏰ Read the entire recipe first",
-            "🧊 Keep ingredients at room temperature"
+    # Expanded recipe database with multiple options per cuisine
+    ENHANCED_RECIPES = {
+        "italian": [
+            {
+                "name": "Creamy Mushroom Risotto",
+                "description": "A rich and creamy Italian classic with earthy mushrooms",
+                "prep_time": "15 minutes",
+                "cook_time": "25 minutes",
+                "servings": 4,
+                "difficulty": "Medium",
+                "ingredients": [
+                    "2 cups Arborio rice", "4 cups vegetable broth", "1 lb mixed mushrooms",
+                    "1 onion, diced", "3 cloves garlic", "1/2 cup white wine",
+                    "1/2 cup parmesan cheese", "2 tbsp butter", "Fresh thyme"
+                ],
+                "instructions": [
+                    "Heat broth in a separate pan and keep warm",
+                    "Sauté mushrooms until golden, set aside",
+                    "Cook onion and garlic until fragrant",
+                    "Add rice and toast for 2 minutes",
+                    "Add wine and stir until absorbed",
+                    "Add broth one ladle at a time, stirring constantly",
+                    "Fold in mushrooms, butter, and parmesan",
+                    "Season and serve immediately"
+                ],
+                "nutrition": {"calories": 380, "protein": "12g", "carbs": "58g", "fat": "8g"},
+                "tags": ["vegetarian", "comfort_food", "medium_time"]
+            },
+            {
+                "name": "Classic Spaghetti Carbonara",
+                "description": "Traditional Roman pasta with eggs, cheese, and pancetta",
+                "prep_time": "10 minutes",
+                "cook_time": "15 minutes",
+                "servings": 4,
+                "difficulty": "Easy",
+                "ingredients": [
+                    "400g spaghetti", "200g pancetta", "4 large eggs",
+                    "100g pecorino romano", "Black pepper", "Salt"
+                ],
+                "instructions": [
+                    "Cook spaghetti in salted boiling water",
+                    "Crisp pancetta in a large pan",
+                    "Whisk eggs with grated cheese and pepper",
+                    "Drain pasta, reserve pasta water",
+                    "Toss hot pasta with pancetta",
+                    "Remove from heat, add egg mixture",
+                    "Toss quickly, adding pasta water if needed",
+                    "Serve immediately with extra cheese"
+                ],
+                "nutrition": {"calories": 520, "protein": "24g", "carbs": "62g", "fat": "18g"},
+                "tags": ["quick", "classic", "low_time"]
+            },
+            {
+                "name": "Margherita Pizza",
+                "description": "Simple and fresh pizza with tomatoes, mozzarella, and basil",
+                "prep_time": "20 minutes",
+                "cook_time": "12 minutes",
+                "servings": 2,
+                "difficulty": "Medium",
+                "ingredients": [
+                    "Pizza dough", "400g canned tomatoes", "250g fresh mozzarella",
+                    "Fresh basil leaves", "Olive oil", "Salt", "Garlic"
+                ],
+                "instructions": [
+                    "Preheat oven to 475°F (245°C)",
+                    "Roll out pizza dough",
+                    "Crush tomatoes with salt and garlic",
+                    "Spread sauce on dough",
+                    "Tear mozzarella into pieces and distribute",
+                    "Drizzle with olive oil",
+                    "Bake for 10-12 minutes until crispy",
+                    "Top with fresh basil before serving"
+                ],
+                "nutrition": {"calories": 450, "protein": "18g", "carbs": "55g", "fat": "16g"},
+                "tags": ["vegetarian", "classic", "medium_time"]
+            }
+        ],
+        "indian": [
+            {
+                "name": "Butter Chicken Curry",
+                "description": "Creamy tomato-based curry with tender chicken pieces",
+                "prep_time": "20 minutes",
+                "cook_time": "30 minutes",
+                "servings": 4,
+                "difficulty": "Medium",
+                "ingredients": [
+                    "1 lb chicken breast, cubed", "1 can tomato sauce", "1/2 cup heavy cream",
+                    "1 onion, sliced", "3 cloves garlic", "1 inch ginger",
+                    "2 tsp garam masala", "1 tsp turmeric", "Salt to taste", "Fresh cilantro"
+                ],
+                "instructions": [
+                    "Marinate chicken with yogurt and spices for 15 minutes",
+                    "Cook chicken until golden, set aside",
+                    "Sauté onions until caramelized",
+                    "Add garlic, ginger, and spices",
+                    "Add tomato sauce and simmer",
+                    "Return chicken to pan",
+                    "Stir in cream and simmer until thick",
+                    "Garnish with cilantro and serve with rice"
+                ],
+                "nutrition": {"calories": 420, "protein": "28g", "carbs": "12g", "fat": "18g"},
+                "tags": ["curry", "medium_time", "spicy"]
+            },
+            {
+                "name": "Vegetable Biryani",
+                "description": "Fragrant basmati rice with mixed vegetables and aromatic spices",
+                "prep_time": "25 minutes",
+                "cook_time": "35 minutes",
+                "servings": 6,
+                "difficulty": "Medium",
+                "ingredients": [
+                    "2 cups basmati rice", "Mixed vegetables", "1 large onion",
+                    "Biryani masala", "Saffron", "Mint leaves", "Fried onions",
+                    "Yogurt", "Ghee", "Whole spices"
+                ],
+                "instructions": [
+                    "Soak rice for 30 minutes",
+                    "Sauté vegetables with spices",
+                    "Cook rice with whole spices until 70% done",
+                    "Layer rice and vegetables",
+                    "Sprinkle saffron milk and fried onions",
+                    "Cover and cook on dum for 45 minutes",
+                    "Let it rest for 10 minutes",
+                    "Serve with raita and pickle"
+                ],
+                "nutrition": {"calories": 380, "protein": "8g", "carbs": "72g", "fat": "12g"},
+                "tags": ["vegetarian", "aromatic", "high_time"]
+            },
+            {
+                "name": "Quick Dal Tadka",
+                "description": "Simple lentil curry with aromatic tempering",
+                "prep_time": "10 minutes",
+                "cook_time": "20 minutes",
+                "servings": 4,
+                "difficulty": "Easy",
+                "ingredients": [
+                    "1 cup yellow lentils", "1 onion", "2 tomatoes", "Ginger-garlic paste",
+                    "Turmeric", "Cumin seeds", "Mustard seeds", "Curry leaves",
+                    "Green chilies", "Cilantro", "Ghee"
+                ],
+                "instructions": [
+                    "Wash and cook lentils with turmeric",
+                    "Heat ghee for tempering",
+                    "Add cumin and mustard seeds",
+                    "Add curry leaves and green chilies",
+                    "Sauté onions until golden",
+                    "Add ginger-garlic paste and tomatoes",
+                    "Pour tempering over cooked dal",
+                    "Garnish with cilantro and serve"
+                ],
+                "nutrition": {"calories": 220, "protein": "12g", "carbs": "35g", "fat": "6g"},
+                "tags": ["vegetarian", "healthy", "low_time", "vegan_adaptable"]
+            }
+        ],
+        "mexican": [
+            {
+                "name": "Spicy Black Bean Tacos",
+                "description": "Flavorful vegetarian tacos with seasoned black beans",
+                "prep_time": "10 minutes",
+                "cook_time": "15 minutes",
+                "servings": 4,
+                "difficulty": "Easy",
+                "ingredients": [
+                    "2 cans black beans", "8 corn tortillas", "1 avocado",
+                    "1 lime", "1 red onion", "2 tomatoes", "1 jalapeño",
+                    "Cumin", "Chili powder", "Fresh cilantro", "Mexican cheese"
+                ],
+                "instructions": [
+                    "Drain and rinse black beans",
+                    "Heat beans with cumin and chili powder",
+                    "Warm tortillas in a dry pan",
+                    "Dice tomatoes, onion, and jalapeño",
+                    "Mash avocado with lime juice",
+                    "Assemble tacos with beans and toppings",
+                    "Sprinkle with cheese and cilantro",
+                    "Serve with lime wedges"
+                ],
+                "nutrition": {"calories": 320, "protein": "14g", "carbs": "52g", "fat": "8g"},
+                "tags": ["vegetarian", "quick", "low_time"]
+            },
+            {
+                "name": "Chicken Fajitas",
+                "description": "Sizzling chicken with peppers and onions",
+                "prep_time": "15 minutes",
+                "cook_time": "12 minutes",
+                "servings": 4,
+                "difficulty": "Easy",
+                "ingredients": [
+                    "1 lb chicken strips", "2 bell peppers", "1 large onion",
+                    "Fajita seasoning", "Flour tortillas", "Sour cream",
+                    "Guacamole", "Salsa", "Cheese", "Lime"
+                ],
+                "instructions": [
+                    "Season chicken with fajita spices",
+                    "Heat oil in a large skillet",
+                    "Cook chicken until golden",
+                    "Add sliced peppers and onions",
+                    "Cook until vegetables are tender-crisp",
+                    "Warm tortillas",
+                    "Serve with toppings",
+                    "Squeeze lime over everything"
+                ],
+                "nutrition": {"calories": 410, "protein": "32g", "carbs": "28g", "fat": "18g"},
+                "tags": ["quick", "low_time", "protein_rich"]
+            }
         ]
-        
-        for tip in tips:
-            st.markdown(f"• {tip}")
+    }
     
-    # Footer
-    st.markdown("---")
-    st.markdown(
-        '<div style="text-align: center; color: gray; padding: 1rem;">'
-        '🤖 Powered by AI • Made with ❤️ using Streamlit<br>'
-        f'Generated on {datetime.now().strftime("%B %d, %Y at %I:%M %p")}'
-        '</div>',
-        unsafe_allow_html=True
-    )
+    # Get recipes for the selected cuisine
+    available_recipes = ENHANCED_RECIPES.get(cuisine.lower(), ENHANCED_RECIPES["italian"])
+    
+    # Filter recipes based on user preferences
+    filtered_recipes = []
+    
+    for recipe in available_recipes:
+        # Check dietary preferences
+        if dietary_pref == "Vegetarian" and "vegetarian" not in recipe.get("tags", []):
+            continue
+        elif dietary_pref == "Vegan" and "vegan" not in recipe.get("tags", []) and "vegan_adaptable" not in recipe.get("tags", []):
+            continue
+        
+        # Check cooking time
+        total_time = int(recipe['prep_time'].split()[0]) + int(recipe['cook_time'].split()[0])
+        if total_time > cooking_time:
+            continue
+            
+        # Check skill level
+        recipe_difficulty = recipe['difficulty'].lower()
+        if skill_level == "Beginner" and recipe_difficulty == "advanced":
+            continue
+        elif skill_level == "Intermediate" and recipe_difficulty == "advanced":
+            continue
+            
+        filtered_recipes.append(recipe)
+    
+    # If no recipes match criteria, relax constraints
+    if not filtered_recipes:
+        filtered_recipes = available_recipes
+    
+    # Select a recipe
+    selected_recipe = random.choice(filtered_recipes)
+    
+    # Customize based on available ingredients
+    if ingredients.strip():
+        user_ingredients = [ing.strip().lower() for ing in ingredients.split(',')]
+        customized_recipe = customize_recipe_with_ingredients(selected_recipe, user_ingredients, dietary_pref)
+        return customized_recipe
+    
+    # Apply dietary modifications
+    if dietary_pref == "Vegan":
+        selected_recipe = make_vegan_adaptations(selected_recipe)
+    elif dietary_pref == "Gluten-Free":
+        selected_recipe = make_gluten_free_adaptations(selected_recipe)
+    
+    return selected_recipe
 
-if __name__ == "__main__":
-    main()
+def customize_recipe_with_ingredients(recipe, user_ingredients, dietary_pref):
+    """Customize recipe based on user's available ingredients"""
+    customized = recipe.copy()
+    
+    # Simple ingredient matching and suggestions
+    recipe_ingredients = [ing.lower() for ing in recipe['ingredients']]
+    matched_ingredients = []
+    
+    for user_ing in user_ingredients:
+        for recipe_ing in recipe_ingredients:
+            if user_ing in recipe_ing or recipe_ing.split()[0] in user_ing:
+                matched_ingredients.append(recipe_ing)
+    
+    if matched_ingredients:
+        customized['description'] += f" (Using your ingredients: {', '.join(matched_ingredients[:3])})"
+    
+    return customized
+
+def make_vegan_adaptations(recipe):
+    """Make vegan adaptations to a recipe"""
+    adapted = recipe.copy()
+    adapted['name'] = f"Vegan {recipe['name']}"
+    
+    # Replace common non-vegan ingredients
+    new_ingredients = []
+    for ingredient in recipe['ingredients']:
+        ingredient_lower = ingredient.lower()
+        if 'butter' in ingredient_lower:
+            new_ingredients.append(ingredient.replace('butter', 'vegan butter').replace('Butter', 'Vegan butter'))
+        elif 'cheese' in ingredient_lower:
+            new_ingredients.append(ingredient.replace('cheese', 'nutritional yeast').replace('Cheese', 'Nutritional yeast'))
+        elif 'cream' in ingredient_lower:
+            new_ingredients.append(ingredient.replace('cream', 'coconut cream').replace('Cream', 'Coconut cream'))
+        elif 'milk' in ingredient_lower:
+            new_ingredients.append(ingredient.replace('milk', 'almond milk').replace('Milk', 'Almond milk'))
+        elif any(meat in ingredient_lower for meat in ['chicken', 'beef', 'pork', 'fish']):
+            new_ingredients.append('Plant-based protein (tofu/tempeh)')
+        else:
+            new_ingredients.append(ingredient)
+    
+    adapted['ingredients'] = new_ingredients
+    adapted['description'] += " (Vegan version)"
+    return adapted
+
+def make_gluten_free_adaptations(recipe):
+    """Make gluten-free adaptations to a recipe"""
+    adapted = recipe.copy()
+    adapted['name'] = f"Gluten-Free {recipe['name']}"
+    
+    # Replace gluten-containing ingredients
+    new_ingredients = []
+    for ingredient in recipe['ingredients']:
+        ingredient_lower = ingredient.lower()
+        if 'flour' in ingredient_lower:
+            new_ingredients.append(ingredient.replace('flour', 'gluten-free flour').replace('Flour', 'Gluten-free flour'))
+        elif 'pasta' in ingredient_lower or 'spaghetti' in ingredient_lower:
+            new_ingredients.append('Gluten-free pasta')
+        elif 'bread' in ingredient_lower:
+            new_ingredients.append('Gluten-free bread')
+        else:
+            new_ingredients.append(ingredient)
+    
+    adapted['ingredients'] = new_ingredients
+    adapted['description'] += " (Gluten-free version)"
+    return adapted
