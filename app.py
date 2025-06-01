@@ -3,10 +3,13 @@ import json
 import random
 from datetime import datetime
 import os
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (optional for deployment)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available in deployment
 
 # Page configuration
 st.set_page_config(
